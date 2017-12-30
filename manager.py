@@ -45,7 +45,7 @@ class NetworkManager:
             loss, acc = model.evaluate(X_val, y_val, batch_size=self.batchsize)
 
             # compute the reward
-            reward = (acc - self.moving_acc)
+            reward = np.abs(acc - self.moving_acc)
 
             # if rewards are clipped, clip them in the range -0.05 to 0.05
             if self.clip_rewards:
