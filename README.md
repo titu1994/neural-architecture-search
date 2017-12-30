@@ -31,9 +31,12 @@ manager = NetworkManager(dataset, epochs=max_epochs, batchsize=batchsize)
 # Implementation details
 This is a very limited project. 
 - It doesnt have support for skip connections via 'anchor points' etc. (though it may not be that hard to implement it as a special state)
-- A lot of the details of the Controller were found in college slides etc and not in the paper so I had to take many liberties when re-implementing it.
+- A lot of the details of the Controller were found in slides etc and not in the paper so I had to take many liberties when re-implementing it.
 - Learning rate, regularization strength, discount factor, exploration, beta value for EWA accuracy, clipping range etc are all random values (which make somewhat sense to me)
 - Single GPU model only. There would need to be a **lot** of modifications to this for multi GPU training (and I have just 1)
+
+Implementation details were found from:
+- http://rll.berkeley.edu/deeprlcoursesp17/docs/quoc_barret.pdf
 
 # Result
 I tried a toy CNN model with 4 CNN layers with different filter sizes (16, 32, 64) and kernel sizes (1, 3) to maximise score in 10 epochs of training on CIFAR-10.
