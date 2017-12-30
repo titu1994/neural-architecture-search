@@ -43,8 +43,8 @@ After 50 steps, it converges to the "state space" of (3x3, 64)-(3x3, 64)-(3x3, 3
 <img src="https://github.com/titu1994/neural-architecture-search/blob/master/images/training_losses.PNG?raw=true" height=100% width=100%>
 
 # Requirements
-- Keras
-- Tensorflow-gpu
+- Keras >= 1.2.1
+- Tensorflow-gpu >= 1.2
 
 # Acknowledgements
 Code heavily inspired by [wallarm/nascell-automl](https://github.com/wallarm/nascell-automl)
