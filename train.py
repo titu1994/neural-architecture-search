@@ -32,10 +32,11 @@ state_space = StateSpace()
 state_space.add_state(name='kernel', values=[1, 3])
 state_space.add_state(name='filters', values=[16, 32, 64])
 
+# print the state space being searched
 state_space.print_state_space()
 
+# prepare the training data for the NetworkManager
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
-
 x_train = x_train.astype('float32') / 255.
 x_test = x_test.astype('float32') / 255.
 y_train = to_categorical(y_train, 10)
@@ -47,40 +48,51 @@ previous_acc = 0.0
 total_reward = 0.0
 
 with policy_sess.as_default():
+    # create the Controller and build the internal policy network
     controller = Controller(policy_sess, NUM_LAYERS, state_space,
                             reg_param=REGULARIZATION,
                             exploration=EXPLORATION,
                             controller_cells=CONTROLLER_CELLS,
                             restore_controller=RESTORE_CONTROLLER)
 
+# create the Network Manager
 manager = NetworkManager(dataset, epochs=MAX_EPOCHS, batchsize=BATCHSIZE, clip_rewards=CLIP_REWARDS)
 
+# get an initial random state space if controller needs to predict an
+# action from the initial state
 state = state_space.get_random_state_space(NUM_LAYERS)
 print("Initial Random State : ", state_space.parse_state_space_list(state))
 print()
 
+# train for number of trails
 for trial in range(MAX_TRIALS):
     with policy_sess.as_default():
         K.set_session(policy_sess)
-        actions = controller.get_action(state)
+        actions = controller.get_action(state)  # get an action for the previous state
 
+    # print the action probabilities
     state_space.print_actions(actions)
-
     print("Predicted actions : ", state_space.parse_state_space_list(actions))
+
+    # build a model, train and get reward and accuracy from the network manager
     reward, previous_acc = manager.get_rewards(model_fn, state_space.parse_state_space_list(actions))
     print("Rewards : ", reward, "Accuracy : ", previous_acc)
 
     with policy_sess.as_default():
         K.set_session(policy_sess)
+
         total_reward += reward
         print("Total reward : ", total_reward)
 
+        # actions and states are equivalent, save the state and reward
         state = actions
         controller.store_rollout(state, reward)
 
+        # train the controller on the saved state and the discounted rewards
         loss = controller.train_step()
         print("Trial %d: Controller loss : %0.6f" % (trial + 1, loss))
 
+        # write the results of this trial into a file
         with open('train_history.csv', mode='a+') as f:
             data = [previous_acc, reward]
             data.extend(state_space.parse_state_space_list(state))
