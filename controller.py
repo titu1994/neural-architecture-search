@@ -284,8 +284,8 @@ class Controller:
                                                                      dtype=tf.float32)
 
                             # add a new classifier for each layers output
-                            classifier = tf.layers.dense(outputs[:, -1, :], units=size, name='classifier_%d' % (i),
-                                                         reuse=None)
+                            classifier = tf.layers.dense(outputs[:, -1, :], units=size, name='classifier_%d' % (i % self.state_size),
+                                                         reuse=tf.AUTO_REUSE)
                             preds = tf.nn.softmax(classifier)
 
                             # feed the previous layer (i-1 layer output) to the next layers input, along with state
