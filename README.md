@@ -4,7 +4,7 @@ Basic implementation of Controller RNN from [Neural Architecture Search with Rei
 
 - Uses Keras to define and train children / generated networks, which are defined in Tensorflow by the Controller RNN.
 - Define a state space by using `StateSpace`, a manager which adds states and handles communication between the Controller RNN and the user.
-- `Reinforce` manages the training and evaluation of the Controller RNN
+- `Controller` manages the training and evaluation of the Controller RNN
 - `NetworkManager` handles the training and reward computation of a Keras model
 
 # Usage
@@ -18,14 +18,14 @@ state_space.add_state(name='kernel', values=[1, 3])
 state_space.add_state(name='filters', values=[16, 32, 64])
 
 # create the managers
-reinforce = Reinforce(tf_session, num_layers, state_space)
+controller = Controller(tf_session, num_layers, state_space)
 manager = NetworkManager(dataset, epochs=max_epochs, batchsize=batchsize)
 
 # For number of trials
   sample_state = ...
-  actions = reinforce.get_actions(sample_state)
+  actions = controller.get_actions(sample_state)
   reward = manager.get_reward(actions)
-  reinforce.train()
+  controller.train()
 ```
 
 # Implementation details

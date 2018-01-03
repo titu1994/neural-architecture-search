@@ -6,7 +6,7 @@ from keras import backend as K
 from keras.datasets import cifar10
 from keras.utils import to_categorical
 
-from reinforce import Reinforce, StateSpace
+from controller import Controller, StateSpace
 from manager import NetworkManager
 from model import model_fn
 
@@ -47,11 +47,11 @@ previous_acc = 0.0
 total_reward = 0.0
 
 with policy_sess.as_default():
-    reinforce = Reinforce(policy_sess, NUM_LAYERS, state_space,
-                          reg_param=REGULARIZATION,
-                          exploration=EXPLORATION,
-                          controller_cells=CONTROLLER_CELLS,
-                          restore_controller=RESTORE_CONTROLLER)
+    controller = Controller(policy_sess, NUM_LAYERS, state_space,
+                            reg_param=REGULARIZATION,
+                            exploration=EXPLORATION,
+                            controller_cells=CONTROLLER_CELLS,
+                            restore_controller=RESTORE_CONTROLLER)
 
 manager = NetworkManager(dataset, epochs=MAX_EPOCHS, batchsize=BATCHSIZE, clip_rewards=CLIP_REWARDS)
 
@@ -62,7 +62,7 @@ print()
 for trial in range(MAX_TRIALS):
     with policy_sess.as_default():
         K.set_session(policy_sess)
-        actions = reinforce.get_action(state)
+        actions = controller.get_action(state)
 
     state_space.print_actions(actions)
 
@@ -76,9 +76,9 @@ for trial in range(MAX_TRIALS):
         print("Total reward : ", total_reward)
 
         state = actions
-        reinforce.store_rollout(state, reward)
+        controller.store_rollout(state, reward)
 
-        loss = reinforce.train_step()
+        loss = controller.train_step()
         print("Trial %d: Controller loss : %0.6f" % (trial + 1, loss))
 
         with open('train_history.csv', mode='a+') as f:

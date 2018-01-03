@@ -172,7 +172,7 @@ class StateSpace:
         return self.state_count_
 
 
-class Reinforce:
+class Controller:
     '''
     Utility class to manage the RNN Controller
     '''
