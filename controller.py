@@ -303,7 +303,7 @@ class Controller:
                 self.global_step = tf.Variable(0, trainable=False)
                 starter_learning_rate = 0.1
                 learning_rate = tf.train.exponential_decay(starter_learning_rate, self.global_step,
-                                                           20, 0.95, staircase=True)
+                                                           500, 0.95, staircase=True)
 
                 tf.summary.scalar('learning_rate', learning_rate)
 
