@@ -29,7 +29,8 @@ manager = NetworkManager(dataset, epochs=max_epochs, batchsize=batchsize)
 ```
 
 # Implementation details
-This is a very limited project. 
+This is a very limited project.
+- **Note**: The controller eventually overfits to produce a single model always (generally a high performance model, but not always the highest). It seems there os a requirement to have a pool of controllers to avoid this overfitting, which would need distributed training. However, since the exploration rate is so high, there is a large set of very good models that are generated during the training process, and the controller yields a pretty strong model as well.
 - It doesnt have support for skip connections via 'anchor points' etc. (though it may not be that hard to implement it as a special state)
 - A lot of the details of the Controller were found in slides etc and not in the paper so I had to take many liberties when re-implementing it.
 - Learning rate, regularization strength, discount factor, exploration, beta value for EWA accuracy, clipping range etc are all random values (which make somewhat sense to me)
