@@ -365,6 +365,21 @@ class Controller:
         self.reward_buffer.append(reward)
         self.state_buffer.append(state)
 
+        # dump buffers to file if it grows larger than 50 items
+        if len(self.reward_buffer) > 20:
+            with open('buffers.txt', mode='a+') as f:
+                for i in range(20):
+                    state_ = self.state_buffer[i]
+                    state_list = self.state_space.parse_state_space_list(state_)
+                    state_list = ','.join(state_list)
+
+                    f.write("%0.4f,%s\n" % (self.reward_buffer[i], state_list))
+
+                print("Saved buffers to file `buffers.txt` !")
+
+            self.reward_buffer = [self.reward_buffer[-1]]
+            self.state_buffer = [self.state_buffer[-1]]
+
     def discount_rewards(self):
         '''
         Compute discounted rewards over the entire reward buffer
