@@ -371,7 +371,7 @@ class Controller:
                 for i in range(20):
                     state_ = self.state_buffer[i]
                     state_list = self.state_space.parse_state_space_list(state_)
-                    state_list = ','.join(state_list)
+                    state_list = ','.join(str(v) for v in state_list)
 
                     f.write("%0.4f,%s\n" % (self.reward_buffer[i], state_list))
 
