@@ -5,6 +5,7 @@ from keras import regularizers
 from keras import constraints
 from keras import backend as K
 from keras.layers import RNN
+from keras.layers.recurrent import _generate_dropout_mask, _generate_dropout_ones
 
 import warnings
 
@@ -234,38 +235,22 @@ class NASCell(Layer):
             self.bias_7 = None
         self.built = True
 
-    def _generate_dropout_mask(self, inputs, training=None):
-        if 0 < self.dropout < 1:
-            ones = K.ones_like(K.squeeze(inputs[:, 0:1, :], axis=1))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            self._dropout_mask = [K.in_train_phase(
-                dropped_inputs,
-                ones,
-                training=training)
-                for _ in range(8)]
-        else:
-            self._dropout_mask = None
-
-    def _generate_recurrent_dropout_mask(self, inputs, training=None):
-        if 0 < self.recurrent_dropout < 1:
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, self.units))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            self._recurrent_dropout_mask = [K.in_train_phase(
-                dropped_inputs,
-                ones,
-                training=training)
-                for _ in range(8)]
-        else:
-            self._recurrent_dropout_mask = None
-
     def call(self, inputs, states, training=None):
+        if 0 < self.dropout < 1 and self._dropout_mask is None:
+            self._dropout_mask = _generate_dropout_mask(
+                _generate_dropout_ones(inputs, K.shape(inputs)[-1]),
+                self.dropout,
+                training=training,
+                count=8)
+        if (0 < self.recurrent_dropout < 1 and
+                self._recurrent_dropout_mask is None):
+            _recurrent_dropout_mask = _generate_dropout_mask(
+                _generate_dropout_ones(inputs, self.units),
+                self.recurrent_dropout,
+                training=training,
+                count=8)
+            self._recurrent_dropout_mask = _recurrent_dropout_mask
+
         # dropout matrices for input units
         dp_mask = self._dropout_mask
         # dropout matrices for recurrent units
@@ -757,7 +742,3 @@ class NASRNN(RNN):
         if 'implementation' in config and config['implementation'] == 0:
             config['implementation'] = 2
         return cls(**config)
-
-
-if __name__ == '__main__':
-    model = NASRNN(10, dropout=0.2, recurrent_dropout=0.2)
