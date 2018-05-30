@@ -18,7 +18,7 @@ NUM_LAYERS = 4  # number of layers of the state space
 MAX_TRIALS = 250  # maximum number of models generated
 
 MAX_EPOCHS = 10  # maximum number of epochs to train
-BATCHSIZE = 128  # batchsize
+CHILD_BATCHSIZE = 128  # batchsize of the child models
 EXPLORATION = 0.8  # high exploration for the first 1000 steps
 REGULARIZATION = 1e-3  # regularization strength
 CONTROLLER_CELLS = 32  # number of cells in RNN controller
@@ -56,7 +56,7 @@ with policy_sess.as_default():
                             restore_controller=RESTORE_CONTROLLER)
 
 # create the Network Manager
-manager = NetworkManager(dataset, epochs=MAX_EPOCHS, batchsize=BATCHSIZE, clip_rewards=CLIP_REWARDS)
+manager = NetworkManager(dataset, epochs=MAX_EPOCHS, child_batchsize=CHILD_BATCHSIZE, clip_rewards=CLIP_REWARDS)
 
 # get an initial random state space if controller needs to predict an
 # action from the initial state

@@ -9,7 +9,7 @@ class NetworkManager:
     '''
     Helper class to manage the generation of subnetwork training given a dataset
     '''
-    def __init__(self, dataset, epochs=5, batchsize=128, acc_beta=0.8, clip_rewards=False):
+    def __init__(self, dataset, epochs=5, child_batchsize=128, acc_beta=0.8, clip_rewards=False):
         '''
         Manager which is tasked with creating subnetworks, training them on a dataset, and retrieving
         rewards in the term of accuracy, which is passed to the controller RNN.
@@ -17,14 +17,14 @@ class NetworkManager:
         Args:
             dataset: a tuple of 4 arrays (X_train, y_train, X_val, y_val)
             epochs: number of epochs to train the subnetworks
-            batchsize: batchsize of training the subnetworks
+            child_batchsize: batchsize of training the subnetworks
             acc_beta: exponential weight for the accuracy
             clip_rewards: whether to clip rewards in [-0.05, 0.05] range to prevent
                 large weight updates. Use when training is highly unstable.
         '''
         self.dataset = dataset
         self.epochs = epochs
-        self.batchsize = batchsize
+        self.batchsize = child_batchsize
         self.clip_rewards = clip_rewards
 
         self.beta = acc_beta

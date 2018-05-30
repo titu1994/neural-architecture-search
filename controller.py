@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import pprint
 from collections import OrderedDict
 
@@ -64,16 +65,16 @@ class StateSpace:
 
         return self.state_count_ - 1
 
-    def one_hot_encode(self, id, value):
+    def embedding_encode(self, id, value):
         '''
-        One hot encode the specific state value
+        Embedding index encode the specific state value
 
         Args:
             id: global id of the state
             value: state value
 
         Returns:
-            one hot encoded representation of the state value
+            embedding encoded representation of the state value
         '''
         state = self[id]
         size = state['size']
@@ -81,7 +82,7 @@ class StateSpace:
         value_idx = value_map[value]
 
         one_hot = np.zeros((1, size), dtype=np.float32)
-        one_hot[np.arange(1), value_idx] = 1.0
+        one_hot[np.arange(1), value_idx] = value_idx + 1
         return one_hot
 
     def get_state_value(self, id, index):
@@ -97,6 +98,10 @@ class StateSpace:
         '''
         state = self[id]
         index_map = state['index_map_']
+
+        if (type(index) == list or type(index) == np.ndarray) and len(index) == 1:
+            index = index[0]
+
         value = index_map[index]
         return value
 
@@ -119,7 +124,7 @@ class StateSpace:
 
             sample = np.random.choice(size, size=1)
             sample = state['index_map_'][sample[0]]
-            state = self.one_hot_encode(id, sample)
+            state = self.embedding_encode(id, sample)
             states.append(state)
         return states
 
@@ -181,6 +186,7 @@ class Controller:
                  discount_factor=0.99,
                  exploration=0.8,
                  controller_cells=32,
+                 embedding_dim=20,
                  restore_controller=False):
         self.policy_session = policy_session  # type: tf.Session
 
@@ -189,6 +195,7 @@ class Controller:
         self.state_size = self.state_space.size
 
         self.controller_cells = controller_cells
+        self.embedding_dim = embedding_dim
         self.reg_strength = reg_param
         self.discount_factor = discount_factor
         self.exploration = exploration
@@ -226,7 +233,7 @@ class Controller:
 
                 sample = np.random.choice(size, size=1)
                 sample = state_['index_map_'][sample[0]]
-                action = self.state_space.one_hot_encode(i, sample)
+                action = self.state_space.embedding_encode(i, sample)
                 actions.append(action)
             return actions
 
@@ -235,8 +242,8 @@ class Controller:
             initial_state = self.state_space[0]
             size = initial_state['size']
 
-            if state[0].shape != (1, size, 1):
-                state = state[0].reshape((1, size, 1))
+            if state[0].shape != (1, size):
+                state = state[0].reshape((1, size)).astype('int32')
             else:
                 state = state[0]
 
@@ -261,18 +268,37 @@ class Controller:
                     # state input is the first input fed into the controller RNN.
                     # the rest of the inputs are fed to the RNN internally
                     with tf.name_scope('state_input'):
-                        state_input = tf.placeholder(dtype=tf.float32, shape=(1, None, 1), name='state_input')
+                        state_input = tf.placeholder(dtype=tf.int32, shape=(1, None), name='state_input')
+
                     self.state_input = state_input
 
                     # we can use LSTM as the controller as well
-                    nas_cell = tf.contrib.rnn.NASCell(self.controller_cells)
+                    nas_cell = tf.nn.rnn_cell.LSTMCell(self.controller_cells)
                     cell_state = nas_cell.zero_state(batch_size=1, dtype=tf.float32)
 
-                    # initially, cell input will be 1st state input
-                    cell_input = state_input
+                    embedding_weights = []
+
+                    # for each possible state, create a new embedding. Reuse the weights for multiple layers.
+                    with tf.variable_scope('embeddings', reuse=tf.AUTO_REUSE):
+                        for i in range(self.state_size):
+                            state_ = self.state_space[i]
+                            size = state_['size']
+
+                            # size + 1 is used so that 0th index is never updated and is "default" value
+                            weights = tf.get_variable('state_embeddings_%d' % i,
+                                                      shape=[size + 1, self.embedding_dim],
+                                                      initializer=tf.initializers.random_uniform(-1., 1.))
+
+                            embedding_weights.append(weights)
+
+                        # initially, cell input will be 1st state input
+                        embeddings = tf.nn.embedding_lookup(embedding_weights[0], state_input)
+
+                    cell_input = embeddings
 
                     # we provide a flat list of chained input-output to the RNN
                     for i in range(self.state_size * self.num_layers):
+                        state_id = i % self.state_size
                         state_space = self.state_space[i]
                         size = state_space['size']
 
@@ -289,7 +315,16 @@ class Controller:
                             preds = tf.nn.softmax(classifier)
 
                             # feed the previous layer (i-1 layer output) to the next layers input, along with state
-                            cell_input = tf.expand_dims(classifier, -1, name='cell_output_%d' % (i))
+                            # take the class label
+                            cell_input = tf.argmax(preds, axis=-1)
+                            cell_input = tf.expand_dims(cell_input, -1, name='pred_output_%d' % (i))
+                            cell_input = tf.cast(cell_input, tf.int32)
+                            cell_input = tf.add(cell_input, 1)  # we avoid using 0 so as to have a "default" embedding at 0th index
+
+                            # embedding lookup of this state using its state weights ; reuse weights
+                            cell_input = tf.nn.embedding_lookup(embedding_weights[state_id], cell_input,
+                                                           name='cell_output_%d' % (i))
+
                             cell_state = final_state
 
                         # store the tensors for later loss computation
@@ -324,7 +359,7 @@ class Controller:
                         labels = tf.placeholder(dtype=tf.float32, shape=(None, size), name='cell_label_%d' % i)
                         self.policy_labels.append(labels)
 
-                        ce_loss = tf.nn.softmax_cross_entropy_with_logits(logits=classifier, labels=labels)
+                        ce_loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=classifier, labels=labels)
                         tf.summary.scalar('state_%d_ce_loss' % (i + 1), tf.reduce_mean(ce_loss))
 
                     cross_entropy_loss += ce_loss
@@ -349,7 +384,11 @@ class Controller:
                     self.train_op = self.optimizer.apply_gradients(self.gradients, global_step=self.global_step)
 
             self.summaries_op = tf.summary.merge_all()
-            self.summary_writer = tf.summary.FileWriter('logs', graph=self.policy_session.graph)
+
+            timestr = time.strftime("%Y-%m-%d-%H-%M-%S")
+            filename = 'logs/%s' % timestr
+
+            self.summary_writer = tf.summary.FileWriter(filename, graph=self.policy_session.graph)
 
             self.policy_session.run(tf.global_variables_initializer())
             self.saver = tf.train.Saver(max_to_keep=1)
@@ -411,12 +450,12 @@ class Controller:
         # then one hot encode them for comparison with the predictions
         state_list = self.state_space.parse_state_space_list(states)
         for id, state_value in enumerate(state_list):
-            state_one_hot = self.state_space.one_hot_encode(id, state_value)
+            state_one_hot = self.state_space.embedding_encode(id, state_value)
             label_list.append(state_one_hot)
 
         # the initial input to the controller RNN
         state_input_size = self.state_space[0]['size']
-        state_input = states[0].reshape((1, state_input_size, 1))
+        state_input = states[0].reshape((1, state_input_size)).astype('int32')
         print("State input to Controller for training : ", state_input.flatten())
 
         # the discounted reward value
