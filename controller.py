@@ -187,6 +187,7 @@ class Controller:
                  exploration=0.8,
                  controller_cells=32,
                  embedding_dim=20,
+                 clip_norm=0.0,
                  restore_controller=False):
         self.policy_session = policy_session  # type: tf.Session
 
@@ -200,6 +201,7 @@ class Controller:
         self.discount_factor = discount_factor
         self.exploration = exploration
         self.restore_controller = restore_controller
+        self.clip_norm = clip_norm
 
         self.reward_buffer = []
         self.state_buffer = []
@@ -372,7 +374,15 @@ class Controller:
                 tf.summary.scalar('total_loss', self.total_loss)
 
                 self.gradients = self.optimizer.compute_gradients(self.total_loss)
+
                 with tf.name_scope('policy_gradients'):
+                    # normalize gradients so that they dont explode if argument passed
+                    if self.clip_norm is not None and self.clip_norm != 0.0:
+                        norm = tf.constant(self.clip_norm, dtype=tf.float32)
+                        gradients, vars = zip(*self.gradients)  # unpack the two lists of gradients and the variables
+                        gradients, _ = tf.clip_by_global_norm(gradients, norm)  # clip by the norm
+                        self.gradients = list(zip(gradients, vars))  # we need to set values later, convert to list
+
                     # compute policy gradients
                     for i, (grad, var) in enumerate(self.gradients):
                         if grad is not None:
@@ -489,3 +499,10 @@ class Controller:
                 self.exploration *= 0.99
 
         return loss
+
+    def remove_files(self):
+        files = ['train_history.csv', 'buffers.txt']
+
+        for file in files:
+            if os.path.exists(file):
+                os.remove(file)

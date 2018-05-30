@@ -9,7 +9,7 @@ class NetworkManager:
     '''
     Helper class to manage the generation of subnetwork training given a dataset
     '''
-    def __init__(self, dataset, epochs=5, child_batchsize=128, acc_beta=0.8, clip_rewards=False):
+    def __init__(self, dataset, epochs=5, child_batchsize=128, acc_beta=0.8, clip_rewards=0.0):
         '''
         Manager which is tasked with creating subnetworks, training them on a dataset, and retrieving
         rewards in the term of accuracy, which is passed to the controller RNN.
@@ -19,7 +19,7 @@ class NetworkManager:
             epochs: number of epochs to train the subnetworks
             child_batchsize: batchsize of training the subnetworks
             acc_beta: exponential weight for the accuracy
-            clip_rewards: whether to clip rewards in [-0.05, 0.05] range to prevent
+            clip_rewards: float - to clip rewards in [-range, range] to prevent
                 large weight updates. Use when training is highly unstable.
         '''
         self.dataset = dataset
@@ -89,9 +89,12 @@ class NetworkManager:
                 reward = np.clip(reward, -0.05, 0.05)
 
             # update moving accuracy with bias correction for 1st update
-            self.moving_acc = self.beta * self.moving_acc + (1 - self.beta) * acc
-            self.moving_acc = self.moving_acc / (1 - self.beta_bias)
-            self.beta_bias = 0
+            if self.beta > 0.0 and self.beta < 1.0:
+                self.moving_acc = self.beta * self.moving_acc + (1 - self.beta) * acc
+                self.moving_acc = self.moving_acc / (1 - self.beta_bias)
+                self.beta_bias = 0
+
+                reward = np.clip(reward, -0.1, 0.1)
 
             print()
             print("Manager: EWA Accuracy = ", self.moving_acc)

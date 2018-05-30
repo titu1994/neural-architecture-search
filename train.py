@@ -17,12 +17,14 @@ K.set_session(policy_sess)
 NUM_LAYERS = 4  # number of layers of the state space
 MAX_TRIALS = 250  # maximum number of models generated
 
-MAX_EPOCHS = 10  # maximum number of epochs to train
+MAX_EPOCHS = 1  # maximum number of epochs to train
 CHILD_BATCHSIZE = 128  # batchsize of the child models
-EXPLORATION = 0.8  # high exploration for the first 1000 steps
+EXPLORATION = 0.9  # high exploration for the first 1000 steps
 REGULARIZATION = 1e-3  # regularization strength
 CONTROLLER_CELLS = 32  # number of cells in RNN controller
-CLIP_REWARDS = False  # clip rewards in the [-0.05, 0.05] range
+EMBEDDING_DIM = 20  # dimension of the embeddings for each state
+ACCURACY_BETA = 0.8  # beta value for the moving average of the accuracy
+CLIP_REWARDS = 0.0  # clip rewards in the [-0.05, 0.05] range
 RESTORE_CONTROLLER = True  # restore controller to continue training
 
 # construct a state space
@@ -53,16 +55,21 @@ with policy_sess.as_default():
                             reg_param=REGULARIZATION,
                             exploration=EXPLORATION,
                             controller_cells=CONTROLLER_CELLS,
+                            embedding_dim=EMBEDDING_DIM,
                             restore_controller=RESTORE_CONTROLLER)
 
 # create the Network Manager
-manager = NetworkManager(dataset, epochs=MAX_EPOCHS, child_batchsize=CHILD_BATCHSIZE, clip_rewards=CLIP_REWARDS)
+manager = NetworkManager(dataset, epochs=MAX_EPOCHS, child_batchsize=CHILD_BATCHSIZE, clip_rewards=CLIP_REWARDS,
+                         acc_beta=ACCURACY_BETA)
 
 # get an initial random state space if controller needs to predict an
 # action from the initial state
 state = state_space.get_random_state_space(NUM_LAYERS)
 print("Initial Random State : ", state_space.parse_state_space_list(state))
 print()
+
+# clear the previous files
+controller.remove_files()
 
 # train for number of trails
 for trial in range(MAX_TRIALS):
