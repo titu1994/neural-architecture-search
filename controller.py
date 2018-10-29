@@ -469,7 +469,7 @@ class Controller:
         print("State input to Controller for training : ", state_input.flatten())
 
         # the discounted reward value
-        reward = self.discount_rewards()
+        reward = self.reward_buffer[-1]
         reward = np.asarray([reward]).astype('float32')
 
         feed_dict = {
