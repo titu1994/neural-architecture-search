@@ -111,3 +111,6 @@ logs/*
 
 # Weights
 weights/*
+
+# data 
+data/*

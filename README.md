@@ -49,6 +49,7 @@ After 50 steps, it converges to the "state space" of (3x3, 64)-(3x3, 64)-(3x3, 3
 # Requirements
 - Keras >= 1.2.1
 - Tensorflow-gpu >= 1.2
+- h5py < 3.0
 
 # Acknowledgements
 Code heavily inspired by [wallarm/nascell-automl](https://github.com/wallarm/nascell-automl)
